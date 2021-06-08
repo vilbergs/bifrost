@@ -1,7 +1,11 @@
 package bifrost
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -21,7 +25,7 @@ import (
  */
 type Bridge interface {
 	Connect(topic string)
-	Disconnect()
+	Disconnect(topic string)
 }
 
 type BridgeOptions struct {
@@ -95,16 +99,28 @@ func (b *bridge) Connect(topic string) {
 		panic(token.Error())
 	}
 
-	if token := b.mqttClient.Subscribe("test-topic", 0, func(client mqtt.Client, msg mqtt.Message) {
-		fmt.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
+	if token := b.mqttClient.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
+		resp, err := http.Post(fmt.Sprintf("%s/telemetry/1", b.options.HTTPHost), "application/json", bytes.NewBuffer(msg.Payload()))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bodyString := string(bodyBytes)
+
+		fmt.Print(bodyString)
+
 	}); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
 }
 
-func (b *bridge) Disconnect() {
-	if token := b.mqttClient.Unsubscribe("testtopic/#"); token.Wait() && token.Error() != nil {
+func (b *bridge) Disconnect(topic string) {
+	if token := b.mqttClient.Unsubscribe(topic); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
