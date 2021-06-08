@@ -43,6 +43,38 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
+func NewBridgeOptions() *BridgeOptions {
+	o := &BridgeOptions{
+		MQTTHost:     "127.0.0.1",
+		MQTTPort:     1883,
+		MQTTUsername: "",
+		MQTTPassword: "",
+		HTTPHost:     "",
+		HTTPMethod:   "POST",
+	}
+
+	return o
+}
+
+func (o *BridgeOptions) AddMQTTHost(host string) *BridgeOptions {
+	o.MQTTHost = host
+
+	return o
+}
+
+func (o *BridgeOptions) AddMQTTUser(username string, password string) *BridgeOptions {
+	o.MQTTUsername = username
+	o.MQTTPassword = password
+
+	return o
+}
+
+func (o *BridgeOptions) AddHTTPHost(host string) *BridgeOptions {
+	o.HTTPHost = host
+
+	return o
+}
+
 func NewBridge(o *BridgeOptions) Bridge {
 	b := &bridge{}
 	b.options = *o
@@ -63,7 +95,9 @@ func (b *bridge) Connect(topic string) {
 		panic(token.Error())
 	}
 
-	if token := b.mqttClient.Subscribe("testtopic/#", 0, nil); token.Wait() && token.Error() != nil {
+	if token := b.mqttClient.Subscribe("test-topic", 0, func(client mqtt.Client, msg mqtt.Message) {
+		fmt.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
+	}); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
