@@ -24,7 +24,7 @@ import (
 * - HTTP requestType
  */
 type Bridge interface {
-	Connect(topic string)
+	Connect(topic string, endpoint string)
 	Disconnect(topic string)
 }
 
@@ -53,7 +53,6 @@ func NewBridgeOptions() *BridgeOptions {
 		MQTTPort:     1883,
 		MQTTUsername: "",
 		MQTTPassword: "",
-		HTTPHost:     "",
 		HTTPMethod:   "POST",
 	}
 
@@ -73,12 +72,6 @@ func (o *BridgeOptions) AddMQTTUser(username string, password string) *BridgeOpt
 	return o
 }
 
-func (o *BridgeOptions) AddHTTPHost(host string) *BridgeOptions {
-	o.HTTPHost = host
-
-	return o
-}
-
 func NewBridge(o *BridgeOptions) Bridge {
 	b := &bridge{}
 	b.options = *o
@@ -94,13 +87,13 @@ func NewBridge(o *BridgeOptions) Bridge {
 	return b
 }
 
-func (b *bridge) Connect(topic string) {
+func (b *bridge) Connect(topic string, endpoint string) {
 	if token := b.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
 
 	if token := b.mqttClient.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		resp, err := http.Post(fmt.Sprintf("%s/telemetry/1", b.options.HTTPHost), "application/json", bytes.NewBuffer(msg.Payload()))
+		resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(msg.Payload()))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -111,6 +104,7 @@ func (b *bridge) Connect(topic string) {
 		}
 		bodyString := string(bodyBytes)
 
+		fmt.Printf("Posted data to %s\n", endpoint)
 		fmt.Print(bodyString)
 
 	}); token.Wait() && token.Error() != nil {
