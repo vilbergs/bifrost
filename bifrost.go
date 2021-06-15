@@ -72,12 +72,22 @@ func (o *BridgeOptions) AddMQTTUser(username string, password string) *BridgeOpt
 	return o
 }
 
+var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
+	fmt.Println("Connected")
+}
+
+var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
+	fmt.Println(fmt.Printf("Connect lost: %v", err))
+}
+
 func NewBridge(o *BridgeOptions) Bridge {
 	b := &bridge{}
 	b.options = *o
 
 	mqttOpts := mqtt.NewClientOptions().AddBroker(fmt.Sprintf("tcp://%s:%d", o.MQTTHost, o.MQTTPort)).SetClientID("bifrost_client")
-	// mqttOpts.KeepAlive(60 * time.Second)
+	mqttOpts.OnConnect = connectHandler
+	mqttOpts.OnConnectionLost = connectLostHandler
+	mqttOpts.SetKeepAlive(6 * time.Second)
 
 	mqttOpts.SetDefaultPublishHandler(f)
 	mqttOpts.SetPingTimeout(1 * time.Second)
